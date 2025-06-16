@@ -1,0 +1,7 @@
+services:
+    standalone-chrome:
+        ports:
+            - 4444:4444
+            - 7900:7900
+        shm_size: 2g
+        image: selenium/standalone-chrome:124.0-chromedriver-124.0-20250606
