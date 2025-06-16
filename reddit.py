@@ -3,6 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webelement import WebElement
 import random
 from utils import random_sleep
+import logging
 
 
 def get_element(driver: webdriver.Remote, by: str, value: str) -> WebElement | None:
@@ -10,7 +11,7 @@ def get_element(driver: webdriver.Remote, by: str, value: str) -> WebElement | N
         random_sleep()  # Random sleep to mimic human behavior
         return driver.find_element(by, value)
     except Exception as e:
-        print(f"Error finding element by {by} with value '{value}': {e}")
+        logging.error(f"Error finding element by {by} with value '{value}': {e}")
         return None
     
 
@@ -19,7 +20,7 @@ def get_all_elements(driver: webdriver.Remote, by: str, value: str) -> list[WebE
         random_sleep()  # Random sleep to mimic human behavior
         return driver.find_elements(by, value)
     except Exception as e:
-        print(f"Error finding elements by {by} with value '{value}': {e}")
+        logging.error(f"Error finding elements by {by} with value '{value}': {e}")
         return []
     
 
@@ -39,13 +40,13 @@ def login_to_reddit(driver: webdriver.Remote, username: str, password: str) -> N
             login_submit = get_element(driver, By.XPATH, '//*[@id="login"]/auth-flow-modal/div[2]/faceplate-tracker/button')
             if login_submit:
                 login_submit.click()
-                random_sleep(1, 3)
+                random_sleep(2, 5)
             else:
-                print("Login submit button not found.")
+                logging.error("Login submit button not found.")
         else:
-            print("Email or password input field not found.")
+            logging.error("Email or password input field not found.")
     else:
-        print("Login button not found.")        
+        logging.error("Login button not found.")    
 
 
 def get_all_posts(driver: webdriver.Remote) -> list[WebElement]:
@@ -57,5 +58,27 @@ def get_random_post(driver: webdriver.Remote) -> WebElement | None:
     if posts:
         return random.choice(posts)
     else:
-        print("No posts found.")
+        logging.error("No posts found.")
+        return None
+    
+
+def get_random_post_comments_greater_than(driver: webdriver.Remote, min_comments: int) -> WebElement | None:
+    posts = get_all_posts(driver)
+    # filtered_posts = [post for post in posts if int(post.get_attribute("comment-count")) > min_comments]
+    filtered_posts = []
+    for post in posts:
+        try:
+            comment_count_text = post.get_attribute("comment-count")
+            if not comment_count_text:
+                logging.warning(f"Post {post.get_attribute('post-title')} has no comment count attribute.")
+                continue
+            comment_count = int(comment_count_text)
+            if comment_count > min_comments:
+                filtered_posts.append(post)
+        except (ValueError, TypeError):
+            logging.error(f"Error converting comment count for post: {post.get_attribute('post-title')}")
+    if filtered_posts:
+        return random.choice(filtered_posts)
+    else:
+        logging.error(f"No posts found with more than {min_comments} comments.")
         return None
