@@ -8,7 +8,9 @@ import random
 from utils import random_sleep
 import reddit
 import logging
+import ai
 
+BASE_URL = "https://old.reddit.com"
 
 def get_driver(url: str) -> webdriver.Remote:
     options = webdriver.ChromeOptions()
@@ -33,24 +35,45 @@ def main():
     url = os.getenv("url")
     username = os.getenv("reddit_username")
     password = os.getenv("reddit_password")
-    if not url or not username or not password:
+    ollama_url = os.getenv("ollama_url")
+    if not url or not username or not password or not ollama_url:
         logging.error("Missing environment variables: url, reddit_username, reddit_password")
         return
+    ollama_client = ai.get_ollama_client(ollama_url)
     driver = get_driver(url)
     try:
+        driver.get(BASE_URL)
         reddit.login_to_reddit(driver, username, password)
-        sleep(500)
-        driver.get("https://www.reddit.com/r/AskReddit/")
-        post = reddit.get_random_post(driver)
+        sleep(5)
+        driver.get(f"{BASE_URL}/r/AskReddit/")
+        post = reddit.get_random_post_comments_greater_than(driver, 100)
         if post:
-            # print(f"Found a post: {post.get_attribute('post-title')}")
-            logging.info(f"Found a post: {post.get_attribute('post-title')}")
+            post_url = post.get_attribute("data-url")
+            if post_url:
+                if not post_url.startswith("http"):
+                    post_url = f"{BASE_URL}{post_url}"
+                logging.info(f"Found a post: {post.get_attribute('data-url')}")
+                driver.get(post_url)
+                sleep(2)
+                comments = reddit.get_random_comments(driver, 10)
+                if not comments:
+                    logging.error("No comments found on the post.")
+                    return
+                logging.info(f"Found {len(comments)} comments on the post.")
+                logging.info(f"Comments: {[comment for comment in comments]}")
+                post_title, comments = reddit.get_post_tile_and_comments(driver, 10)
+                sleep(1)
+                if not post_title:
+                    logging.error("Post title not found.")
+                    return
+                comment = ai.generate_comment(ollama_client, post_title, comments)
+                logging.info(f"Generated comment: {comment}")
+
         else:
             logging.error("No posts found.")
-        sleep(600)
-        print("Login successful!")
+        sleep(60)
     except Exception as e:
-        print(f"An error occurred during login: {e}")
+        logging.error(f"An error occurred: {e}")
     finally:
         driver.quit()
     
