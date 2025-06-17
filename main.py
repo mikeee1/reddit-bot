@@ -9,6 +9,7 @@ from utils import random_sleep
 import reddit
 import logging
 import ai
+import time
 
 BASE_URL = "https://old.reddit.com"
 
@@ -42,8 +43,8 @@ def main():
     ollama_client = ai.get_ollama_client(ollama_url)
     driver = get_driver(url)
     try:
-        driver.get(BASE_URL)
-        reddit.login_to_reddit(driver, username, password)
+        reddit.setup_reddit(driver, BASE_URL, username, password)
+        # reddit.login_to_reddit(driver, username, password)
         sleep(5)
         driver.get(f"{BASE_URL}/r/AskReddit/")
         post = reddit.get_random_post_comments_greater_than(driver, 100)
@@ -55,7 +56,7 @@ def main():
                 logging.info(f"Found a post: {post.get_attribute('data-url')}")
                 driver.get(post_url)
                 sleep(2)
-                comments = reddit.get_random_comments(driver, 10)
+                comments = reddit.get_random_comments(driver, 20)
                 if not comments:
                     logging.error("No comments found on the post.")
                     return
@@ -66,7 +67,13 @@ def main():
                 if not post_title:
                     logging.error("Post title not found.")
                     return
+                start_time = time.time()
+                logging.info(f"start comment time: {start_time}")
                 comment = ai.generate_comment(ollama_client, post_title, comments)
+                random_sleep(len(comment) / 80, len(comment) / 30)
+                reddit.post_comment(driver, comment)
+                logging.info(f"done comment time: {time.time()}")
+                logging.info(f"total time: {time.time() - start_time}")
                 logging.info(f"Generated comment: {comment}")
 
         else:
