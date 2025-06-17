@@ -146,8 +146,15 @@ def get_all_comments(driver: webdriver.Remote) -> list[WebElement]:
     return comments
 
 
+def get_all_top_level_comments(driver: webdriver.Remote) -> list[WebElement]:
+    comments = get_all_elements(driver, By.CSS_SELECTOR, "div.comment[itemprop]")
+    if not comments:
+        logging.error("No top-level comments found.")
+    return comments
+
+
 def get_random_comments(driver: webdriver.Remote, count: int) -> list[str]:
-    comments = get_all_comments(driver)
+    comments = get_all_top_level_comments(driver)
     logging.info(f"Found {len(comments)} comments.")
     if not comments:
         logging.error("No comments found to select from.")
